@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============ helpers ============
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function realUser() { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    // Google accounts are verified; email/password accounts must verify their email
+    function verified() {
+      return realUser() && (request.auth.token.firebase.sign_in_provider == 'google.com'
+                            || request.auth.token.email_verified == true);
+    }
+    function staffRef() { return /databases/$(database)/documents/staff/$(request.auth.uid); }
+    function isStaff() { return signedIn() && exists(staffRef()) && get(staffRef()).data.active == true; }
+    function isAdmin() { return isStaff() && get(staffRef()).data.role == 'admin'; }
+    function can(p) {
+      return isStaff() && (get(staffRef()).data.role == 'admin'
+                           || get(staffRef()).data.permissions.get(p, false) == true);
+    }
+    function tsOk(field) {
+      let ch = request.resource.data.diff(resource.data).affectedKeys();
+      return !ch.hasAny([field]) || request.resource.data[field] == request.time;
+    }
+
+    // ============ public restaurant data (1 read each) ============
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if can('settings_manage')
+        && request.resource.data.keys().hasAll(['isOrderingOpen', 'minOrder', 'paymentMethods', 'zones']);
+    }
+    // menu/current = { categories[], items[], offers[], updatedAt }
+    match /menu/{doc} {
+      allow read: if true;
+      allow write: if can('menu_manage')
+        && request.resource.data.keys().hasOnly(['categories', 'items', 'offers', 'updatedAt'])
+        && request.resource.data.categories.size() <= 40
+        && request.resource.data.items.size() <= 200
+        && request.resource.data.offers.size() <= 20;
+    }
+
+    // ============ customers ============
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && realUser()
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'email', 'addresses', 'createdAt', 'lastLoginAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80
+        && request.resource.data.email == request.auth.token.email.lower()
+        && (request.resource.data.phone == '' || request.resource.data.phone.matches('^01[0125][0-9]{8}$'));
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'phone', 'addresses', 'lastLoginAt', 'lastOrderAt'])
+        && tsOk('lastLoginAt') && tsOk('lastOrderAt')
+        && (request.resource.data.phone == '' || request.resource.data.phone.matches('^01[0125][0-9]{8}$'));
+      allow delete: if false;
+    }
+
+    // ============ staff (only admins write; first admin is created by hand in the Console) ============
+    match /staff/{uid} {
+      allow read: if isOwner(uid) || isAdmin()
+        || (can('assign_driver') && resource.data.permissions.get('driver', false) == true);
+      allow create, update: if isAdmin() && uid != request.auth.uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'preset', 'permissions', 'active', 'createdAt', 'createdBy', 'updatedAt'])
+        && request.resource.data.role in ['admin', 'staff']
+        && request.resource.data.permissions.keys().hasOnly([
+             'orders_view', 'orders_manage', 'orders_create', 'payments_confirm', 'assign_driver',
+             'kitchen', 'driver', 'menu_manage', 'reports_view', 'settings_manage']);
+      allow delete: if isAdmin() && uid != request.auth.uid;
+    }
+
+    // ============ orders ============
+    function orderShapeOk(d) {
+      return d.keys().hasOnly(['orderNumber', 'ownerId', 'branchId', 'source', 'customer', 'items', 'subtotal', 'deliveryFee',
+                               'total', 'delivery', 'notes', 'paymentMethod', 'transferRef', 'paymentStatus', 'status',
+                               'statusLog', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['orderNumber', 'ownerId', 'branchId', 'source', 'customer', 'items', 'subtotal', 'deliveryFee',
+                            'total', 'delivery', 'notes', 'paymentMethod', 'paymentStatus', 'status', 'statusLog',
+                            'createdAt', 'updatedAt'])
+        && d.branchId == 'main'
+        && d.items is list && d.items.size() >= 1 && d.items.size() <= 20
+        && d.subtotal is int && d.deliveryFee is int && d.total is int
+        && d.subtotal > 0 && d.deliveryFee >= 0 && d.total == d.subtotal + d.deliveryFee
+        && d.customer.name is string && d.customer.name.size() > 0 && d.customer.name.size() <= 80
+        && d.customer.phone.matches('^01[0125][0-9]{8}$')
+        && d.notes is string && d.notes.size() <= 300
+        && d.delivery.type in ['delivery', 'pickup']
+        && d.status == 'new' && d.paymentStatus == 'unpaid'
+        && d.paymentMethod in ['cod', 'transfer']
+        && d.createdAt == request.time && d.updatedAt == request.time;
+    }
+
+    function customerNewOrderOk() {
+      let d = request.resource.data;
+      let st = get(/databases/$(database)/documents/settings/restaurant).data;
+      let ctr = getAfter(/databases/$(database)/documents/counters/orders).data;
+      let uPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return orderShapeOk(d)
+        && d.ownerId == request.auth.uid && d.source == 'web'
+        && st.isOrderingOpen == true
+        && st.paymentMethods.get(d.paymentMethod, false) == true
+        && (d.paymentMethod != 'transfer'
+            || (d.transferRef is string && d.transferRef.size() >= 3 && d.transferRef.size() <= 40))
+        && d.subtotal >= st.minOrder
+        && ((d.delivery.type == 'pickup' && d.deliveryFee == 0 && st.pickupEnabled == true)
+            || (d.delivery.type == 'delivery' && st.deliveryEnabled == true
+                && st.zones[d.delivery.zoneId].active == true
+                && d.deliveryFee == st.zones[d.delivery.zoneId].fee))
+        && d.orderNumber == ctr.value
+        && getAfter(uPath).data.lastOrderAt == request.time
+        && request.time > get(uPath).data.get('lastOrderAt', timestamp.date(2000, 1, 1)) + duration.value(2, 'm');
+    }
+
+    function staffNewOrderOk() {
+      let d = request.resource.data;
+      let ctr = getAfter(/databases/$(database)/documents/counters/orders).data;
+      return orderShapeOk(d)
+        && d.ownerId == null && d.source == 'phone'
+        && d.orderNumber == ctr.value;
+    }
+
+    function ownerCancelOk() {
+      let ch = request.resource.data.diff(resource.data).affectedKeys();
+      return isOwner(resource.data.ownerId)
+        && resource.data.status == 'new' && request.resource.data.status == 'cancelled'
+        && ch.hasOnly(['status', 'updatedAt', 'statusLog', 'cancelReason'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function staffUpdateOk() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let ch = after.diff(before).affectedKeys();
+      return ch.hasOnly(['status', 'updatedAt', 'statusLog', 'driverId', 'driverName', 'paymentStatus', 'cancelReason'])
+        && after.updatedAt == request.time
+        && after.status in ['new', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled']
+        && (!ch.hasAny(['paymentStatus']) || after.paymentStatus in ['paid', 'unpaid'])
+        && (
+          can('orders_manage')
+          || (can('kitchen') && after.status in ['preparing', 'ready']
+              && !ch.hasAny(['driverId', 'driverName', 'paymentStatus', 'cancelReason']))
+          || (can('driver') && before.driverId == request.auth.uid
+              && after.status in ['out_for_delivery', 'delivered']
+              && !ch.hasAny(['driverId', 'driverName', 'paymentStatus', 'cancelReason']))
+          || (can('assign_driver') && ch.hasOnly(['driverId', 'driverName', 'updatedAt', 'statusLog']))
+          || (can('payments_confirm') && ch.hasOnly(['paymentStatus', 'updatedAt', 'statusLog']))
+        );
+    }
+
+    match /orders/{id} {
+      allow read: if can('orders_view') || can('kitchen')
+        || (signedIn() && resource.data.ownerId == request.auth.uid)
+        || (can('driver') && resource.data.driverId == request.auth.uid);
+      allow create: if (verified() && customerNewOrderOk()) || (can('orders_create') && staffNewOrderOk());
+      allow update: if ownerCancelOk() || (isStaff() && staffUpdateOk());
+      allow delete: if false;
+    }
+
+    // ============ order counter (every increment must come with a new order in the same batch) ============
+    match /counters/{doc} {
+      allow read: if verified() || isStaff();
+      allow create: if isAdmin() && request.resource.data.keys().hasOnly(['value', 'lastOrderId'])
+        && request.resource.data.value == 1000;
+      allow update: if (verified() || can('orders_create'))
+        && request.resource.data.keys().hasOnly(['value', 'lastOrderId'])
+        && request.resource.data.value == resource.data.value + 1
+        && !exists(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId))
+        && existsAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId));
+    }
+  }
+}

@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /admin
+Disallow: /admin/
+Disallow: /admin/*
+Allow: /
+Allow: /menu
+Allow: /cart
+Allow: /checkout
+Allow: /about
+
+Sitemap: https://mazbaha-elqalaa-dev.firebaseapp.com/sitemap.xml

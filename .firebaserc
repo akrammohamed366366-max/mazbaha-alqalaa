@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "mazbaha-elqalaa-dev",
+    "dev": "mazbaha-elqalaa-dev",
+    "prod": "mazbaha-elqalaa-prod"
+  }
+}

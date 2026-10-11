@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #F5F7F6;
+    color: #1F2A2E;
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    direction: rtl;
+  }
+  h1, h2, h3, .font-headline {
+    font-family: 'El Messiri', sans-serif;
+  }
+}
+
+/* Authentic Mamluk Cairo Ablaq Stone Stripe (Alternating Verdigris, Ember, Mist) */
+.ablaq-stripe {
+  height: 4px;
+  display: block;
+  background: repeating-linear-gradient(
+    to left,
+    #1E6B64 0px,
+    #1E6B64 24px,
+    #C23B22 24px,
+    #C23B22 48px,
+    #DDE5E3 48px,
+    #DDE5E3 72px
+  );
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Accessibility: respect user prefers-reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .no-print {
+    display: none !important;
+  }
+  #receipt-print-area, #receipt-print-area * {
+    visibility: visible;
+  }
+  #receipt-print-area {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 4mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

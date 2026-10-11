@@ -1,0 +1,6 @@
+{
+  "name": "مذبحة القلعة - مشويات على الفحم البلدي",
+  "description": "تطبيق ومنظومة تشغيل مطعم مذبحة القلعة للمشويات الأصيلة: متجر إلكتروني، قائمة طعام، كاشير، شاشة مطبخ، توصيل، وإدارة متكاملة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
