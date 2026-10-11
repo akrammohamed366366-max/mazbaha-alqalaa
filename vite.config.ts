@@ -6,6 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
+    base: './',
     plugins: [
       react(),
       tailwindcss(),
@@ -13,7 +14,7 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'og-image.jpg', 'robots.txt', 'sitemap.xml'],
         manifest: {
-          id: '/',
+          id: './',
           name: 'مذبحة القلعة - مشويات على الفحم',
           short_name: 'مذبحة القلعة',
           description: 'مطعم مشويات على الفحم البلدي، طلب وتوصيل أونلاين وإدارة تشغيل متكاملة',
@@ -22,23 +23,23 @@ export default defineConfig(() => {
           display: 'standalone',
           dir: 'rtl',
           lang: 'ar',
-          start_url: '/',
-          scope: '/',
+          start_url: './',
+          scope: './',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: 'pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -47,7 +48,7 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,jpg}'],
-          navigateFallback: '/index.html',
+          navigateFallback: 'index.html',
           navigateFallbackDenylist: [/^\/api\/.*/, /^https:\/\/firestore\.googleapis\.com\/.*/],
           runtimeCaching: [
             {

@@ -11,33 +11,50 @@ import {
   setLogLevel,
 } from 'firebase/firestore';
 
+import { defaultFirebaseConfig } from '../lib/firebaseConfig';
+
 // Safe environment variable accessor for both Vite client and Node scripts
 const getEnv = (key: string): string | undefined => {
   if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env[key];
+    const val = import.meta.env[key];
+    if (typeof val === 'string' && val.trim().length > 0) return val;
   }
   if (typeof process !== 'undefined' && process.env) {
-    return process.env[key];
+    const val = process.env[key];
+    if (typeof val === 'string' && val.trim().length > 0) return val;
   }
   return undefined;
 };
 
 export const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY') || 'AIzaSyDummyApiKeyForDevPreview12345678',
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN') || 'mazbaha-elqalaa-dev.firebaseapp.com',
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || 'mazbaha-elqalaa-dev',
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || '123456789012',
-  appId: getEnv('VITE_FIREBASE_APP_ID') || '1:123456789012:web:abcdef1234567890',
-  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID') || undefined,
+  apiKey: getEnv('VITE_FIREBASE_API_KEY') || defaultFirebaseConfig.apiKey || '',
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN') || defaultFirebaseConfig.authDomain || '',
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || defaultFirebaseConfig.projectId || '',
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET') || defaultFirebaseConfig.storageBucket || '',
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || defaultFirebaseConfig.messagingSenderId || '',
+  appId: getEnv('VITE_FIREBASE_APP_ID') || defaultFirebaseConfig.appId || '',
 };
 
-export const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const isFirebaseConfigured: boolean = Boolean(
+  firebaseConfig.apiKey.trim().length > 0 && firebaseConfig.projectId.trim().length > 0
+);
 
-export const auth: Auth = getAuth(app);
+if (!isFirebaseConfigured) {
+  console.warn('Firebase configuration missing (apiKey or projectId is empty). Running in uninitialized mode.');
+}
+
+function initFirebaseApp(): FirebaseApp | null {
+  if (!isFirebaseConfigured) return null;
+  return getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+}
+
+export const app: FirebaseApp | null = initFirebaseApp();
+
+export const auth: Auth = app ? getAuth(app) : ({} as Auth);
 
 // Prompt S6: App Check with reCAPTCHA v3, initialized BEFORE any Firestore call
 function initAppCheckInstance(): AppCheck | null {
-  if (typeof window === 'undefined') return null;
+  if (!app || typeof window === 'undefined') return null;
   const siteKey = getEnv('VITE_APPCHECK_SITE_KEY') || getEnv('VITE_RECAPTCHA_SITE_KEY');
   try {
     if (siteKey) {
@@ -60,6 +77,7 @@ export const appCheck: AppCheck | null = initAppCheckInstance();
 
 // Initialize Firestore with persistentLocalCache to cut repeat reads
 function initFirestoreInstance(): Firestore {
+  if (!app) return {} as Firestore;
   try {
     setLogLevel('error');
   } catch {
@@ -82,7 +100,7 @@ function initFirestoreInstance(): Firestore {
 export const db: Firestore = initFirestoreInstance();
 
 // Connect to emulators if enabled
-if (getEnv('VITE_USE_EMULATORS') === 'true') {
+if (app && getEnv('VITE_USE_EMULATORS') === 'true') {
   try {
     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
     connectFirestoreEmulator(db, 'localhost', 8080);

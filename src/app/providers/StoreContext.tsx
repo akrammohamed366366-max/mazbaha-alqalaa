@@ -207,7 +207,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               '@context': 'https://schema.org',
               '@type': 'Restaurant',
               name: data.nameAr || 'مذبحة القلعة',
-              image: '/og-image.jpg',
+              image: `${import.meta.env.BASE_URL}og-image.jpg`,
               description: 'مطعم مشويات على الفحم البلدي: كباب وكفتة وريش وطرب ودجاج مشوي مع توصيل أونلاين.',
               servesCuisine: 'Egyptian',
               priceRange: '$$',

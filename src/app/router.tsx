@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createHashRouter } from 'react-router-dom';
 import { CustomerLayout } from './CustomerLayout';
 import { RequireRole } from '../hooks/useAuth';
 
@@ -58,7 +58,7 @@ const LazyFallback = () => (
   </div>
 );
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   // Customer site with CustomerLayout (Header, 4-tab bottom nav, dish modal)
   {
     path: '/',

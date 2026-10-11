@@ -32,7 +32,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleGoHome = () => {
     this.setState({ hasError: false, error: null });
-    window.location.href = '/';
+    window.location.hash = '#/';
+    window.location.reload();
   };
 
   public render() {
@@ -48,12 +49,12 @@ export class ErrorBoundary extends Component<Props, State> {
               <Flame className="w-8 h-8" aria-hidden="true" />
             </div>
 
-            <div className="space-y-2">
-              <h1 className="font-headline font-bold text-2xl text-[#1F2A2E]">
-                عفواً، حدث خطأ غير متوقع
+            <div className="space-y-3">
+              <h1 className="font-headline font-bold text-xl text-[#1F2A2E]">
+                حدث خطأ ما. يرجى تحديث الصفحة.
               </h1>
-              <p className="text-sm text-[#1F2A2E]/70 leading-relaxed">
-                نعتذر عن هذا الخطأ المؤقت. يجري العمل على ضمان أفضل استقرار لمنظومة التشغيل.
+              <p className="text-sm font-sans text-[#1F2A2E]/70" dir="ltr">
+                Something went wrong. Please refresh the page.
               </p>
             </div>
 

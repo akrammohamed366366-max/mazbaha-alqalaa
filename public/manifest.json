@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "مذبحة القلعة - مشويات على الفحم",
   "short_name": "مذبحة القلعة",
   "description": "مطعم مشويات على الفحم البلدي، طلب وتوصيل أونلاين وإدارة تشغيل متكاملة",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "dir": "rtl",
   "lang": "ar",
@@ -13,19 +13,19 @@
   "background_color": "#F5F7F6",
   "icons": [
     {
-      "src": "/pwa-192x192.png",
+      "src": "pwa-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa-512x512.png",
+      "src": "pwa-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa-maskable-512x512.png",
+      "src": "pwa-maskable-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
